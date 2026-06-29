@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIXT PR — Cola de Espera</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --card: #1C1C1C;
+    --border: #2A2A2A;
+    --orange: #FF5F00;
+    --orange-dim: #CC4A00;
+    --green: #22C55E;
+    --yellow: #FACC15;
+    --red: #EF4444;
+    --white: #F5F5F5;
+    --muted: #737373;
+    --radius: 10px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-box {
+    background: var(--orange);
+    color: #000;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+  .branch-name { font-size: 13px; color: var(--muted); letter-spacing: 0.04em; }
+  .status-row { display: flex; align-items: center; gap: 8px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.offline { background: var(--yellow); }
+  .status-label { font-size: 11px; color: var(--muted); }
+
+  /* ── MAIN ── */
+  .main { flex: 1; padding: 20px; max-width: 680px; margin: 0 auto; width: 100%; }
+
+  /* ── ADD SECTION ── */
+  .add-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .add-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .add-row { display: flex; gap: 10px; }
+  .name-input {
+    flex: 1; background: var(--card);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--white); font-size: 15px; padding: 11px 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .name-input:focus { border-color: var(--orange); }
+  .name-input::placeholder { color: var(--muted); }
+  .add-btn {
+    background: var(--orange); color: #000; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 700;
+    padding: 11px 20px; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s, transform 0.1s; letter-spacing: 0.02em;
+  }
+  .add-btn:hover { background: #FF7A29; }
+  .add-btn:active { transform: scale(0.97); }
+
+  /* ── STATS BAR — 4 columns ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 10px; text-align: center;
+  }
+  .stat.agents-stat { border-color: rgba(34,197,94,0.3); }
+  .stat-num {
+    font-size: 24px; font-weight: 700; color: var(--white);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-num.orange { color: var(--orange); }
+  .stat-num.green  { color: var(--green); }
+  .stat-label {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); margin-top: 2px;
+  }
+
+  /* Agents counter inside stat */
+  .agents-ctrl {
+    display: flex; align-items: center;
+    justify-content: center; gap: 10px; margin-top: 4px;
+  }
+  .agent-btn {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--white); width: 26px; height: 26px;
+    border-radius: 6px; font-size: 16px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: background 0.15s, border-color 0.15s;
+    line-height: 1;
+  }
+  .agent-btn:hover { background: var(--border); border-color: var(--green); }
+  .agent-num {
+    font-size: 24px; font-weight: 700; color: var(--green);
+    font-variant-numeric: tabular-nums; min-width: 24px; text-align: center;
+  }
+
+  /* ── QUEUE LIST ── */
+  .queue-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 10px;
+  }
+  .queue-title {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
+  .clear-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-size: 11px; padding: 4px 10px;
+    border-radius: 6px; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+  }
+  .clear-btn:hover { color: var(--red); border-color: var(--red); }
+  .queue-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .empty-state {
+    background: var(--surface); border: 1px dashed var(--border);
+    border-radius: var(--radius); padding: 40px 20px;
+    text-align: center; color: var(--muted); font-size: 13px;
+  }
+  .empty-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.5; }
+
+  /* ── QUEUE CARD ── */
+  .queue-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; align-items: center; gap: 14px;
+    animation: slideIn 0.2s ease; transition: border-color 0.3s;
+  }
+  .queue-card.warn  { border-color: rgba(250,204,21,0.4); }
+  .queue-card.urgent{ border-color: rgba(239,68,68,0.5); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .queue-num {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    min-width: 20px; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .queue-num.first { color: var(--orange); }
+  .queue-info { flex: 1; min-width: 0; }
+  .queue-name {
+    font-size: 15px; font-weight: 600; color: var(--white);
+    word-break: break-word;
+  }
+  .queue-time {
+    font-size: 12px; color: var(--muted); margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wait-badge {
+    font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+    min-width: 44px; text-align: right;
+    font-family: "SF Mono", "Courier New", monospace; transition: color 0.3s;
+  }
+  .wait-badge.ok     { color: var(--white); }
+  .wait-badge.warn   { color: var(--yellow); }
+  .wait-badge.urgent { color: var(--red); }
+
+  .serve-btn {
+    background: var(--orange); color: #000; border: none;
+    border-radius: 7px; font-size: 12px; font-weight: 700;
+    padding: 8px 14px; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s, transform 0.1s; letter-spacing: 0.02em;
+  }
+  .serve-btn:hover { background: #FF7A29; }
+  .serve-btn:active { transform: scale(0.95); }
+  .remove-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); border-radius: 7px; font-size: 12px;
+    padding: 8px 10px; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+  }
+  .remove-btn:hover { color: var(--red); border-color: var(--red); }
+
+  /* ── SERVED LOG ── */
+  .served-section { margin-top: 28px; }
+  .served-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .served-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px; opacity: 0.7;
+  }
+  .served-name { flex: 1; font-size: 13px; color: var(--muted); }
+  .served-time { font-size: 12px; color: var(--muted); }
+  .served-duration { font-size: 12px; color: var(--green); font-weight: 600; font-family: "SF Mono", monospace; }
+  .check-icon { color: var(--green); font-size: 14px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 20px; font-size: 13px;
+    color: var(--white); z-index: 100;
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap;
+  }
+  .toast.show  { transform: translateX(-50%) translateY(0); }
+  .toast.green  { border-color: var(--green);  color: var(--green); }
+  .toast.orange { border-color: var(--orange); color: var(--orange); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-box">SIXT</div>
+    <span class="branch-name">ISLA VERDE · COLA DE ESPERA</span>
+  </div>
+  <div class="status-row">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-label" id="statusLabel">Conectando...</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ADD CUSTOMER -->
+  <div class="add-section">
+    <div class="add-label">Agregar cliente a la cola</div>
+    <div class="add-row">
+      <input class="name-input" id="nameInput" type="text" placeholder="Nombre y apellido del cliente..." autocomplete="off" />
+      <button class="add-btn" onclick="addCustomer()">+ Agregar</button>
+    </div>
+  </div>
+
+  <!-- STATS: 4 columns -->
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-num orange" id="statWaiting">0</div>
+      <div class="stat-label">En cola</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="statAvgWait">—</div>
+      <div class="stat-label">ETA próximo</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="statServed">0</div>
+      <div class="stat-label">Servidos hoy</div>
+    </div>
+    <div class="stat agents-stat">
+      <div class="stat-label" style="margin-bottom:6px;">Agentes activos</div>
+      <div class="agents-ctrl">
+        <button class="agent-btn" onclick="changeAgents(-1)">−</button>
+        <span class="agent-num" id="agentCount">1</span>
+        <button class="agent-btn" onclick="changeAgents(1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUEUE -->
+  <div class="queue-header">
+    <span class="queue-title">Clientes en espera</span>
+    <button class="clear-btn" onclick="clearAll()">Limpiar todo</button>
+  </div>
+  <div class="queue-list" id="queueList">
+    <div class="empty-state">
+      <div class="empty-icon">🟠</div>
+      No hay clientes en cola
+    </div>
+  </div>
+
+  <!-- SERVED LOG -->
+  <div class="served-section" id="servedSection" style="display:none;">
+    <div class="queue-header">
+      <span class="queue-title">Servidos hoy</span>
+    </div>
+    <div class="served-list" id="servedList"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyARGDRKj6e5xC2vuvGSZOTfAWDwnFNsY70",
+  authDomain: "sixt-pr-shuttles.firebaseapp.com",
+  databaseURL: "https://sixt-pr-shuttles-default-rtdb.firebaseio.com",
+  projectId: "sixt-pr-shuttles",
+  storageBucket: "sixt-pr-shuttles.firebasestorage.app",
+  messagingSenderId: "580819003057",
+  appId: "1:580819003057:web:ddcf516624d66d1d446490"
+};
+const QUEUE_PATH = "queue/islaverde";
+
+let queue   = [];
+let served  = [];
+let agents  = 1;
+let useFirebase = false;
+let db = null;
+let timerInterval = null;
+
+// ── Firebase ─────────────────────────────────────────────────────
+async function initFirebase() {
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getDatabase, ref, onValue, set } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getDatabase(app);
+    const qRef = ref(db, QUEUE_PATH);
+    onValue(qRef, (snap) => {
+      const data = snap.val() || {};
+      queue   = data.queue   || [];
+      served  = data.served  || [];
+      agents  = data.agents  ?? 1;
+      document.getElementById("agentCount").textContent = agents;
+      render();
+    }, () => fallbackToLocal());
+    useFirebase = true;
+    setStatus("online", "Firebase activo");
+  } catch(e) {
+    fallbackToLocal();
+  }
+}
+
+function fallbackToLocal() {
+  useFirebase = false;
+  setStatus("offline", "Modo local");
+  loadLocal();
+}
+
+async function persist() {
+  if (useFirebase && db) {
+    const { getDatabase, ref, set } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    set(ref(db, QUEUE_PATH), { queue, served, agents });
+  } else {
+    localStorage.setItem("sixt_queue", JSON.stringify({ queue, served, agents }));
+  }
+}
+
+function loadLocal() {
+  const raw = localStorage.getItem("sixt_queue");
+  if (raw) {
+    const d = JSON.parse(raw);
+    queue  = d.queue  || [];
+    served = d.served || [];
+    agents = d.agents ?? 1;
+    document.getElementById("agentCount").textContent = agents;
+  }
+  render();
+}
+
+// ── Actions ───────────────────────────────────────────────────────
+window.addCustomer = function() {
+  const input = document.getElementById("nameInput");
+  const name  = input.value.trim();
+  if (!name) return;
+  queue.push({ id: Date.now(), name, addedAt: Date.now() });
+  persist();
+  input.value = "";
+  input.focus();
+  showToast(`${name} agregado a la cola`, "orange");
+};
+
+window.serveCustomer = function(id) {
+  const idx = queue.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  const c = queue.splice(idx, 1)[0];
+  c.servedAt = Date.now();
+  served.unshift(c);
+  if (served.length > 20) served = served.slice(0, 20);
+  persist();
+  showToast(`${c.name} atendido ✓`, "green");
+};
+
+window.removeCustomer = function(id) {
+  queue = queue.filter(c => c.id !== id);
+  persist();
+};
+
+window.clearAll = function() {
+  if (!queue.length) return;
+  if (confirm(`¿Eliminar los ${queue.length} clientes en cola?`)) {
+    queue = [];
+    persist();
+  }
+};
+
+window.changeAgents = function(delta) {
+  agents = Math.max(0, agents + delta);
+  document.getElementById("agentCount").textContent = agents;
+  persist();
+};
+
+// ── Format helpers ────────────────────────────────────────────────
+function formatMin(ms) {
+  const m = Math.floor(ms / 60000);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}h ${m % 60}m`;
+  if (m < 1)  return `<1m`;
+  return `${m}m`;
+}
+
+function getWaitClass(ms) {
+  const m = ms / 60000;
+  if (m >= 30) return "urgent";
+  if (m >= 15) return "warn";
+  return "ok";
+}
+
+// ── ETA calculation ───────────────────────────────────────────────
+const AVG_SERVICE_MIN = 8.5;
+
+function calcETA() {
+  if (!queue.length) return "—";
+  const activeAgents = Math.max(agents, 1);
+  const etaMin = Math.ceil((queue.length / activeAgents) * AVG_SERVICE_MIN);
+  const h = Math.floor(etaMin / 60);
+  const m = etaMin % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${etaMin}m`;
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function render() {
+  renderQueue();
+  renderServed();
+  renderStats();
+}
+
+function renderQueue() {
+  const list = document.getElementById("queueList");
+  if (!queue.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🟠</div>No hay clientes en cola</div>`;
+    return;
+  }
+  const now = Date.now();
+  list.innerHTML = queue.map((c, i) => {
+    const wait   = now - c.addedAt;
+    const wClass = getWaitClass(wait);
+    return `
+      <div class="queue-card ${wClass !== 'ok' ? wClass : ''}" id="card-${c.id}">
+        <span class="queue-num ${i === 0 ? 'first' : ''}">${i + 1}</span>
+        <div class="queue-info">
+          <div class="queue-name">${esc(c.name)}</div>
+          <div class="queue-time">Ingresó: ${new Date(c.addedAt).toLocaleTimeString('es-PR',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+        <span class="wait-badge ${wClass}" id="timer-${c.id}">${formatMin(wait)}</span>
+        <button class="serve-btn" onclick="serveCustomer(${c.id})">Servir</button>
+        <button class="remove-btn" onclick="removeCustomer(${c.id})" title="Remover">✕</button>
+      </div>`;
+  }).join("");
+}
+
+function renderServed() {
+  const section = document.getElementById("servedSection");
+  const list    = document.getElementById("servedList");
+  if (!served.length) { section.style.display = "none"; return; }
+  section.style.display = "block";
+  list.innerHTML = served.slice(0, 8).map(c => `
+    <div class="served-card">
+      <span class="check-icon">✓</span>
+      <span class="served-name">${esc(c.name)}</span>
+      <span class="served-duration">${formatMin(c.servedAt - c.addedAt)}</span>
+      <span class="served-time">${new Date(c.servedAt).toLocaleTimeString('es-PR',{hour:'2-digit',minute:'2-digit'})}</span>
+    </div>`).join("");
+}
+
+function renderStats() {
+  document.getElementById("statWaiting").textContent = queue.length;
+  document.getElementById("statServed").textContent  = served.length;
+  const eta = calcETA();
+  document.getElementById("statAvgWait").textContent = eta;
+}
+
+// ── Live timer — updates badges every minute ──────────────────────
+function startLiveTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const now = Date.now();
+    queue.forEach(c => {
+      const el   = document.getElementById(`timer-${c.id}`);
+      const card = document.getElementById(`card-${c.id}`);
+      if (!el) return;
+      const wait   = now - c.addedAt;
+      const wClass = getWaitClass(wait);
+      el.textContent = formatMin(wait);
+      el.className   = `wait-badge ${wClass}`;
+      if (card) card.className = `queue-card ${wClass !== 'ok' ? wClass : ''}`;
+    });
+    renderStats();
+  }, 60000); // every minute
+}
+
+function setStatus(state, label) {
+  document.getElementById("statusDot").className  = `status-dot ${state}`;
+  document.getElementById("statusLabel").textContent = label;
+}
+
+function showToast(msg, type = "") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className   = `toast ${type} show`;
+  setTimeout(() => el.className = `toast ${type}`, 2500);
+}
+
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+document.getElementById("nameInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") addCustomer();
+});
+
+initFirebase();
+startLiveTimer();
+render();
+</script>
+</body>
+</html>

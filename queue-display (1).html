@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIXT PR — Sala de Espera</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --card: #1C1C1C;
+    --border: #2A2A2A;
+    --orange: #FF5F00;
+    --green: #22C55E;
+    --yellow: #FACC15;
+    --red: #EF4444;
+    --white: #F5F5F5;
+    --muted: #525252;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--white);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow: hidden; }
+
+  .screen { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--surface); border-bottom: 2px solid var(--orange);
+    padding: 20px 48px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left { display: flex; align-items: center; gap: 20px; }
+  .logo-box {
+    background: var(--orange); color: #000; font-weight: 900;
+    font-size: 26px; letter-spacing: -0.5px; padding: 5px 13px; border-radius: 5px;
+  }
+  .header-title {
+    font-size: 16px; font-weight: 300; letter-spacing: 0.15em;
+    text-transform: uppercase; opacity: 0.85;
+  }
+  .header-right { display: flex; align-items: center; gap: 32px; }
+  .header-time {
+    font-size: 30px; font-weight: 300; font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em; font-family: "SF Mono","Courier New",monospace;
+  }
+
+  /* ── BODY ── */
+  .body { display: grid; grid-template-columns: 320px 1fr; overflow: hidden; }
+
+  /* LEFT PANEL */
+  .counter-panel {
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 20px; gap: 28px;
+  }
+  .counter-block { text-align: center; }
+  .counter-num {
+    font-size: 84px; font-weight: 800; color: var(--orange);
+    line-height: 1; font-variant-numeric: tabular-nums;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .counter-num.bump { transform: scale(1.1); }
+  .counter-label {
+    font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-top: 6px;
+  }
+
+  .divider { width: 40px; height: 1px; background: var(--border); }
+
+  /* Agents block */
+  .agents-block { text-align: center; }
+  .agents-num {
+    font-size: 48px; font-weight: 700; color: var(--green);
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .agents-label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-top: 6px;
+  }
+  .agents-dots { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--green); opacity: 0.9;
+    box-shadow: 0 0 6px var(--green);
+    transition: opacity 0.3s;
+  }
+  .dot.off { background: var(--border); box-shadow: none; opacity: 0.4; }
+
+  /* Avg wait */
+  .avg-block { text-align: center; }
+  .avg-num {
+    font-size: 34px; font-weight: 600; color: var(--white);
+    font-variant-numeric: tabular-nums; font-family: "SF Mono","Courier New",monospace;
+  }
+  .avg-label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-top: 6px;
+  }
+
+  /* RIGHT PANEL */
+  .queue-panel {
+    padding: 28px 44px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .panel-label {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 18px; font-weight: 600;
+  }
+  .queue-rows { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 9px; }
+
+  .queue-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 22px;
+    display: flex; align-items: center; gap: 18px;
+    animation: rowIn 0.3s ease; transition: border-color 0.4s; flex-shrink: 0;
+  }
+  .queue-row.first  { border-color: var(--orange); background: #1A0F08; }
+  .queue-row.warn   { border-color: rgba(250,204,21,0.35); }
+  .queue-row.urgent { border-color: rgba(239,68,68,0.45); background: #160808; }
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateX(14px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .row-pos {
+    font-size: 20px; font-weight: 700; color: var(--muted);
+    min-width: 28px; font-variant-numeric: tabular-nums;
+  }
+  .row-pos.fp { color: var(--orange); }
+  .row-name {
+    flex: 1; font-size: 24px; font-weight: 500;
+    word-break: break-word;
+  }
+  .next-badge {
+    background: var(--orange); color: #000; font-size: 11px;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 6px; white-space: nowrap;
+  }
+  .row-wait {
+    font-size: 20px; font-weight: 600;
+    font-family: "SF Mono","Courier New",monospace;
+    font-variant-numeric: tabular-nums; min-width: 52px; text-align: right;
+  }
+  .row-wait.ok     { color: var(--muted); }
+  .row-wait.warn   { color: var(--yellow); }
+  .row-wait.urgent { color: var(--red); }
+
+  /* Empty */
+  .empty-display {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; opacity: 0.3;
+  }
+  .empty-display .empty-icon { font-size: 44px; }
+  .empty-display .empty-text { font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* FOOTER */
+  .footer {
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 13px 48px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .footer-msg { font-size: 13px; color: var(--muted); letter-spacing: 0.04em; }
+  .footer-msg span { color: var(--orange); font-weight: 600; }
+  .footer-right { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-box">SIXT</div>
+      <span class="header-title">Sala de Espera · Isla Verde</span>
+    </div>
+    <div class="header-right">
+      <div class="header-time" id="clock">--:--</div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- LEFT: counters -->
+    <div class="counter-panel">
+      <div class="counter-block">
+        <div class="counter-num" id="bigCount">0</div>
+        <div class="counter-label">En espera</div>
+      </div>
+      <div class="divider"></div>
+      <div class="agents-block">
+        <div class="agents-num" id="agentsNum">1</div>
+        <div class="agents-label">Agentes atendiendo</div>
+        <div class="agents-dots" id="agentsDots"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="avg-block">
+        <div class="avg-num" id="avgWait">—</div>
+        <div class="avg-label">ETA próximo cliente</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: queue list -->
+    <div class="queue-panel">
+      <div class="panel-label">Clientes en cola</div>
+      <div class="queue-rows" id="queueRows">
+        <div class="empty-display">
+          <div class="empty-icon">✓</div>
+          <div class="empty-text">Sin espera</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-msg">Gracias por su paciencia · <span>SIXT Puerto Rico</span> · Isla Verde</div>
+    <div class="footer-right" id="updateTag">Actualizando...</div>
+  </div>
+
+</div>
+
+<script type="module">
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyARGDRKj6e5xC2vuvGSZOTfAWDwnFNsY70",
+  authDomain: "sixt-pr-shuttles.firebaseapp.com",
+  databaseURL: "https://sixt-pr-shuttles-default-rtdb.firebaseio.com",
+  projectId: "sixt-pr-shuttles",
+  storageBucket: "sixt-pr-shuttles.firebasestorage.app",
+  messagingSenderId: "580819003057",
+  appId: "1:580819003057:web:ddcf516624d66d1d446490"
+};
+const QUEUE_PATH = "queue/islaverde";
+const MAX_ROWS   = 7;
+
+let queue  = [];
+let agents = 1;
+let lastCount = 0;
+
+// ── Firebase ──────────────────────────────────────────────────────
+async function initFirebase() {
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getDatabase, ref, onValue } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    const app = initializeApp(FIREBASE_CONFIG);
+    const db  = getDatabase(app);
+    onValue(ref(db, QUEUE_PATH), (snap) => {
+      const d = snap.val() || {};
+      queue  = d.queue  || [];
+      agents = d.agents ?? 1;
+      render();
+    });
+    document.getElementById("updateTag").textContent = "Firebase en vivo";
+  } catch(e) {
+    fallbackToLocal();
+  }
+}
+
+function fallbackToLocal() {
+  document.getElementById("updateTag").textContent = "Modo local · 5s";
+  pollLocal();
+}
+function pollLocal() {
+  const raw = localStorage.getItem("sixt_queue");
+  if (raw) { const d = JSON.parse(raw); queue = d.queue || []; agents = d.agents ?? 1; render(); }
+  setTimeout(pollLocal, 5000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function formatMin(ms) {
+  const m = Math.floor(ms / 60000);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}h ${m % 60}m`;
+  if (m < 1)  return `<1m`;
+  return `${m}m`;
+}
+function getWaitClass(ms) {
+  const m = ms / 60000;
+  if (m >= 30) return "urgent";
+  if (m >= 15) return "warn";
+  return "ok";
+}
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+
+// ── ETA calculation ───────────────────────────────────────────────
+const AVG_SERVICE_MIN = 8.5;
+
+function calcETA() {
+  if (!queue.length) return "—";
+  const activeAgents = Math.max(agents, 1);
+  const etaMin = Math.ceil((queue.length / activeAgents) * AVG_SERVICE_MIN);
+  const h = Math.floor(etaMin / 60);
+  const m = etaMin % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${etaMin}m`;
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function render() {
+  const now = Date.now();
+
+  // Big counter with bump animation
+  const bigCount = document.getElementById("bigCount");
+  if (queue.length !== lastCount) {
+    bigCount.classList.add("bump");
+    setTimeout(() => bigCount.classList.remove("bump"), 350);
+    lastCount = queue.length;
+  }
+  bigCount.textContent = queue.length;
+
+  // Agents display + dots
+  document.getElementById("agentsNum").textContent = agents;
+  const dotsEl = document.getElementById("agentsDots");
+  const maxDots = Math.min(agents, 8);
+  dotsEl.innerHTML = Array.from({length: Math.max(agents, 1)}, (_, i) =>
+    `<div class="dot${i >= agents ? ' off' : ''}"></div>`
+  ).slice(0, 8).join("");
+
+  // ETA for next customer
+  const avgEl = document.getElementById("avgWait");
+  avgEl.textContent = calcETA();
+
+  // Queue rows
+  const rows = document.getElementById("queueRows");
+  if (!queue.length) {
+    rows.innerHTML = `<div class="empty-display"><div class="empty-icon">✓</div><div class="empty-text">Sin espera</div></div>`;
+    return;
+  }
+
+  rows.innerHTML = queue.slice(0, MAX_ROWS).map((c, i) => {
+    const wait   = now - c.addedAt;
+    const wClass = getWaitClass(wait);
+    const first  = i === 0;
+    return `
+      <div class="queue-row ${first ? 'first' : wClass}">
+        <span class="row-pos ${first ? 'fp' : ''}">${i + 1}</span>
+        <span class="row-name">${esc(c.name)}</span>
+        ${first ? '<span class="next-badge">PRÓXIMO</span>' : ''}
+        <span class="row-wait ${first ? 'ok' : wClass}">${formatMin(wait)}</span>
+      </div>`;
+  }).join("");
+
+  if (queue.length > MAX_ROWS) {
+    rows.innerHTML += `<div style="text-align:center;color:var(--muted);font-size:13px;letter-spacing:0.06em;padding:8px 0">+${queue.length - MAX_ROWS} más en cola</div>`;
+  }
+}
+
+// ── Clock ─────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString('es-PR',{hour:'2-digit',minute:'2-digit',hour12:true});
+}
+
+setInterval(render, 60000);  // refresh every minute
+setInterval(updateClock, 1000);
+updateClock();
+initFirebase();
+render();
+</script>
+</body>
+</html>
